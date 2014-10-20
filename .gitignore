@@ -162,3 +162,4 @@ $RECYCLE.BIN/
 Makefile
 nbproject/
 .dep.inc
+/dist/

@@ -67,7 +67,7 @@ Matrix::Matrix(const Matrix & _copy)
 	this->setNumColumns(_copy.getNumColumns());
 	if (this->allocateMemory(rows, cols) == false)
 	{
-		throw new std::exception("Couldn't allocate memory.");
+		throw new std::runtime_error("Couldn't allocate memory.");
 	}
 
 	for (int r = 0; r < this->getNumRows(); r++)
@@ -86,7 +86,7 @@ Matrix::Matrix(Matrix && _temporary)
 	this->setNumColumns(_temporary.getNumColumns());
 	if (this->allocateMemory(rows, cols) == false)
 	{
-		throw new std::exception("Couldn't allocate memory.");
+		throw new std::runtime_error("Couldn't allocate memory.");
 	}
 
 	for (int r = 0; r < this->getNumRows(); r++)
@@ -105,7 +105,7 @@ Matrix::Matrix(int rows, int cols)
 {
 	if ( ! Matrix::isValidDimension(rows, cols))
 	{
-		throw new std::exception("Invalid dimensions.");
+		throw new std::runtime_error("Invalid dimensions.");
 	}
 
 	this->setNumRows(rows);
@@ -113,7 +113,7 @@ Matrix::Matrix(int rows, int cols)
 
 	if (this->allocateMemory(rows, cols) == false)
 	{
-		throw new std::exception("Couldn't allocate memory.");
+		throw new std::runtime_error("Couldn't allocate memory.");
 	}
 
 	for (int r = 0; r < rows; r++)
@@ -134,12 +134,12 @@ Matrix::Matrix(int rows, int cols, const double * input)
 	// Проверка входных данных
 	if ( ! Matrix::isValidDimension(rows, cols) )
 	{
-		throw new std::exception("Invalid dimensions.");
+		throw new std::runtime_error("Invalid dimensions.");
 	}
 
 	if ( input == NULL )
 	{
-		throw new std::exception("Bad data pointer.");
+		throw new std::runtime_error("Bad data pointer.");
 	}
 
 	this->setNumRows(rows);
@@ -147,7 +147,7 @@ Matrix::Matrix(int rows, int cols, const double * input)
 
 	if (this->allocateMemory(rows, cols) == false)
 	{
-		throw new std::exception("Couldn't allocate memory.");
+		throw new std::runtime_error("Couldn't allocate memory.");
 	}
 
 	for (int r = 0; r < rows; r++)
@@ -209,7 +209,7 @@ Matrix::MatrixRowAccessor< const Matrix > Matrix::operator[] (int _rowIndex) con
 {
 	if ( ! this->isRowInRange(_rowIndex)) 
 	{
-		throw new std::exception("Out of range.");
+		throw new std::runtime_error("Out of range.");
 	}
 	return MatrixRowAccessor< const Matrix >(*this, _rowIndex);
 }
@@ -220,7 +220,7 @@ Matrix::MatrixRowAccessor< Matrix > Matrix::operator[] (int _rowIndex)
 {
 	if (!this->isRowInRange(_rowIndex))
 	{
-		throw new std::exception("Out of range.");
+		throw new std::runtime_error("Out of range.");
 	}
 	return MatrixRowAccessor< Matrix >(*this, _rowIndex);
 }
@@ -233,24 +233,10 @@ Matrix::MatrixRowAccessor< Matrix > Matrix::operator[] (int _rowIndex)
 // ---------------------------------------------------------------------------------
 
 // Реализация метода уточненного класса class MatrixRowAccessor<const Matrix>
-double Matrix::MatrixRowAccessor< const Matrix >::operator[](int _columnIndex) const
-{
-	if (!this->m_matrix.isColInRange(_columnIndex))
-	{
-		throw new std::exception("Out of range.");
-	}
-	return this->m_matrix.matrix[this->m_rowIndex][_columnIndex];
-}
+
 
 // Реализация метода уточненного класса class MatrixRowAccessor<Matrix>
-double& Matrix::MatrixRowAccessor< Matrix >::operator[](int _columnIndex)
-{
-	if (!this->m_matrix.isColInRange(_columnIndex))
-	{
-		throw new std::exception("Out of range.");
-	}
-	return this->m_matrix.matrix[this->m_rowIndex][_columnIndex];
-}
+
 // =================================================================================
 
 
