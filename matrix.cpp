@@ -15,13 +15,13 @@ bool Matrix::isValidDimension(int rows, int cols)
 // Проверяет, чтобы переданное значение строки было в допустимых пределах
 bool Matrix::isRowInRange(int row) const
 {
-	return (row > 0 || row <= this->rows);
+	return (row >= 0 && row < this->rows);
 }
 
 // Проверяет, чтобы переданное значение столбца было в допустимых пределах
 bool Matrix::isColInRange(int col) const
 {
-	return (col > 0 || col <= this->cols);
+	return (col >= 0 && col < this->cols);
 }
 
 // Выделение памяти под матрицу. Условно считаем входные данные стирильными.
@@ -67,7 +67,7 @@ Matrix::Matrix(const Matrix & _copy)
 	this->setNumColumns(_copy.getNumColumns());
 	if (this->allocateMemory(rows, cols) == false)
 	{
-		throw new std::runtime_error("Couldn't allocate memory.");
+        throw new Matrix::ErrAllocException();
 	}
 
 	for (int r = 0; r < this->getNumRows(); r++)
@@ -86,7 +86,7 @@ Matrix::Matrix(Matrix && _temporary)
 	this->setNumColumns(_temporary.getNumColumns());
 	if (this->allocateMemory(rows, cols) == false)
 	{
-		throw new std::runtime_error("Couldn't allocate memory.");
+		throw new Matrix::ErrAllocException();
 	}
 
 	for (int r = 0; r < this->getNumRows(); r++)
@@ -105,7 +105,7 @@ Matrix::Matrix(int rows, int cols)
 {
 	if ( ! Matrix::isValidDimension(rows, cols))
 	{
-		throw new std::runtime_error("Invalid dimensions.");
+		throw new Matrix::InvalDimensionsException();
 	}
 
 	this->setNumRows(rows);
@@ -113,7 +113,7 @@ Matrix::Matrix(int rows, int cols)
 
 	if (this->allocateMemory(rows, cols) == false)
 	{
-		throw new std::runtime_error("Couldn't allocate memory.");
+		throw new Matrix::ErrAllocException();
 	}
 
 	for (int r = 0; r < rows; r++)
@@ -134,12 +134,12 @@ Matrix::Matrix(int rows, int cols, const double * input)
 	// Проверка входных данных
 	if ( ! Matrix::isValidDimension(rows, cols) )
 	{
-		throw new std::runtime_error("Invalid dimensions.");
+		throw new Matrix::InvalDimensionsException();
 	}
 
 	if ( input == NULL )
 	{
-		throw new std::runtime_error("Bad data pointer.");
+		throw new Matrix::BadDataPtrException();
 	}
 
 	this->setNumRows(rows);
@@ -147,7 +147,7 @@ Matrix::Matrix(int rows, int cols, const double * input)
 
 	if (this->allocateMemory(rows, cols) == false)
 	{
-		throw new std::runtime_error("Couldn't allocate memory.");
+		throw new Matrix::ErrAllocException();
 	}
 
 	for (int r = 0; r < rows; r++)
@@ -178,8 +178,148 @@ Matrix::~Matrix(){
 // =================================================================================
 // Перегруженные операторы сравнения на равенство == и неравенство !=
 // ---------------------------------------------------------------------------------
+bool Matrix::operator ==(const Matrix& right) const 
+{
+    // Если размеры матриц не совпадают, они точно не равны
+    if ( this->getNumColumns() != right.getNumColumns() ||
+         this->getNumRows() != right.getNumRows() )
+    {
+        return false;
+    }
+    
+    // Поэлементное сравнение элементов матриц
+    for (int row = 0; row < this->getNumRows(); row++)
+    {
+        for (int col = 0; col < this->getNumColumns(); col++) 
+        {
+            if ( this->matrix[row][col] != right.matrix[row][col]) return false;
+        }
+    }
+    
+    return true;
+}
 
+bool Matrix::operator !=(const Matrix& right) const 
+{
+    return !(*this == right);
+}
 
+// =================================================================================
+
+// =================================================================================
+// Перегруженные операторы сложения и вычитания матриц: +, +=, -, -=.
+// ---------------------------------------------------------------------------------
+const Matrix operator +(const Matrix& left, const Matrix& right)
+{
+    if (left.getNumColumns()   != right.getNumColumns() ||
+        left.getNumRows()      != right.getNumRows() )
+    {
+        throw new Matrix::SizeMismatchException();
+    }
+    
+    Matrix sum_result = Matrix(left.getNumRows(), left.getNumColumns());
+    
+    for (int row = 0; row < left.getNumRows(); row++)
+    {
+        for (int col = 0; col < left.getNumColumns(); col++) 
+        {
+            // Если оба слагаемых элемента матриц положительные
+            if (left.matrix[row][col] > 0 && right.matrix[row][col] > 0)
+            {   // Проверяем, не выходит ли их сумма за пределы типа double
+                if ( (DBL_MAX - left.matrix[row][col]) < right.matrix[row][col])
+                {
+                    throw new Matrix::ValsOutOfRangeException();
+                }
+            }
+            sum_result[row][col] = left.matrix[row][col] + right.matrix[row][col];
+        }
+    }
+    
+    return sum_result; 
+}
+
+const Matrix operator -(const Matrix& left, const Matrix& right)
+{
+    if (left.getNumColumns()   != right.getNumColumns() ||
+        left.getNumRows()      != right.getNumRows() )
+    {
+        throw new Matrix::SizeMismatchException();
+    }
+    
+    Matrix sum_result = Matrix(left.getNumRows(), left.getNumColumns());
+    
+    for (int row = 0; row < left.getNumRows(); row++)
+    {
+        for (int col = 0; col < left.getNumColumns(); col++) 
+        {
+            // Если оба слагаемых элемента матриц отрицательные
+            if (left.matrix[row][col] < 0 && right.matrix[row][col] < 0)
+            {   // Проверяем, не выходит ли их сумма за пределы типа double
+                if ( (DBL_MIN - left.matrix[row][col]) > right.matrix[row][col])
+                {
+                    throw new Matrix::ValsOutOfRangeException();
+                }
+            }
+            sum_result[row][col] = left.matrix[row][col] - right.matrix[row][col];
+        }
+    }
+    
+    return sum_result; 
+}
+
+Matrix& operator +=(Matrix& left, const Matrix& right)
+{
+    if (left.getNumColumns()   != right.getNumColumns() ||
+        left.getNumRows()      != right.getNumRows() )
+    {
+        throw new Matrix::SizeMismatchException();
+    }
+    
+    for (int row = 0; row < left.getNumRows(); row++)
+    {
+        for (int col = 0; col < left.getNumColumns(); col++) 
+        {
+            // Если оба слагаемых элемента матриц положительные
+            if (left.matrix[row][col] > 0 && right.matrix[row][col] > 0)
+            {   // Проверяем, не выходит ли их сумма за пределы типа double
+                if ( (DBL_MAX - left.matrix[row][col]) < right.matrix[row][col])
+                {
+                    throw new Matrix::ValsOutOfRangeException();
+                }
+            }
+            left.matrix[row][col] += right.matrix[row][col];
+        }
+    }
+    
+    return left; 
+}
+
+Matrix& operator -=(Matrix& left, const Matrix& right)
+{
+    if (left.getNumColumns()   != right.getNumColumns() ||
+        left.getNumRows()      != right.getNumRows() )
+    {
+        throw new Matrix::SizeMismatchException();
+    }
+    
+    for (int row = 0; row < left.getNumRows(); row++)
+    {
+        for (int col = 0; col < left.getNumColumns(); col++) 
+        {
+            // Если оба слагаемых элемента матриц отрицательные
+            if (left.matrix[row][col] < 0 && right.matrix[row][col] < 0)
+            {   // Проверяем, не выходит ли их сумма за пределы типа double
+                if ( (DBL_MIN - left.matrix[row][col]) > right.matrix[row][col])
+                {
+                    throw new Matrix::ValsOutOfRangeException();
+                }
+            }
+            left.matrix[row][col] += right.matrix[row][col];
+        }
+    }
+    
+    return left; 
+}
 // =================================================================================
 
 
@@ -209,7 +349,7 @@ Matrix::MatrixRowAccessor< const Matrix > Matrix::operator[] (int _rowIndex) con
 {
 	if ( ! this->isRowInRange(_rowIndex)) 
 	{
-		throw new std::runtime_error("Out of range.");
+		throw new Matrix::OutOfRangeException();
 	}
 	return MatrixRowAccessor< const Matrix >(*this, _rowIndex);
 }
@@ -220,7 +360,7 @@ Matrix::MatrixRowAccessor< Matrix > Matrix::operator[] (int _rowIndex)
 {
 	if (!this->isRowInRange(_rowIndex))
 	{
-		throw new std::runtime_error("Out of range.");
+		throw new Matrix::OutOfRangeException();
 	}
 	return MatrixRowAccessor< Matrix >(*this, _rowIndex);
 }

@@ -6,6 +6,7 @@
 /*****************************************************************************/
 #include <iostream>
 #include <stdexcept>
+#include <cfloat> // для проверки выхода за пределы типа double
 
 class Matrix
 {
@@ -61,10 +62,10 @@ public:
 	bool operator!= (const Matrix& right) const;
 
 	// Перегруженные операторы сложения и вычитания матриц: +, +=, -, -=.
-	Matrix operator+ (const Matrix& right) const;
-	Matrix operator- (const Matrix& right) const;
-	Matrix& operator+=(const Matrix& right);
-	Matrix& operator-=(const Matrix& right);
+	friend const Matrix operator+ ( const Matrix& left, const Matrix& right );
+	friend const Matrix operator- ( const Matrix& left, const Matrix& right );
+	friend Matrix& operator+= ( Matrix& left, const Matrix& right );
+	friend Matrix& operator-= ( Matrix& left, const Matrix& right );
 
 	// Перегруженные операторы умножения матриц: *, *=.
 	Matrix operator * (const Matrix& _multiplier) const;
@@ -109,7 +110,7 @@ public:
         {
             if (!this->m_matrix.isColInRange(_columnIndex))
             {
-                throw new std::runtime_error("Out of range.");
+                throw new Matrix::OutOfRangeException();
             }
             return this->m_matrix.matrix[this->m_rowIndex][_columnIndex];
         }
@@ -119,20 +120,18 @@ public:
         {
             if (!this->m_matrix.isColInRange(_columnIndex))
             {
-                throw new std::runtime_error("Out of range.");
+                throw new Matrix::OutOfRangeException();
             }
             return this->m_matrix.matrix[this->m_rowIndex][_columnIndex];
         }
 	};
-
+    
 	
 /*****************************************************************************/
 
 	template< typename > friend class MatrixRowAccessor;
 
 /*------------------------------------------------------------------*/
-
-	
 
 	// Операторы индексной выборки для чтения и для записи. При попытке доступа по 
 	// некорректному номеру строки или столбца должно генерироваться исключение с текстом "Out of range".
@@ -141,10 +140,50 @@ public:
 
 	MatrixRowAccessor< Matrix > operator[] ( int _rowIndex );
 
-	// TODO ...
-
 /*------------------------------------------------------------------*/
 
+    struct Exception : std::exception
+    {
+        std::string msg;
+        std::string msg_header = "Matrix exception ";
+        Exception( std::string msg ) : msg(msg) {}
+        ~Exception() throw () {}
+        const char* what() const throw() 
+        { 
+            std::string output = msg_header + "'" + msg + "'";
+            return output.c_str(); 
+        }
+    };
+    
+    struct OutOfRangeException : Matrix::Exception
+    {
+        OutOfRangeException() : Exception("Out of range") {}
+    };
+    
+    struct ValsOutOfRangeException : Matrix::Exception
+    {
+        ValsOutOfRangeException() : Exception("Values are out of range") {}
+    };
+    
+    struct ErrAllocException : Matrix::Exception
+    {
+        ErrAllocException() : Exception("Couldn't allocate memory") {}
+    };
+    
+    struct InvalDimensionsException : Matrix::Exception
+    {
+        InvalDimensionsException() : Exception("Invalid dimensions") {}
+    };
+    
+    struct BadDataPtrException : Matrix::Exception
+    {
+        BadDataPtrException() : Exception("Bad data pointer") {}
+    };
+  
+    struct SizeMismatchException : Matrix::Exception
+    {
+        SizeMismatchException() : Exception("Size mismatch") {}
+    };
 };
 
 /*****************************************************************************/
