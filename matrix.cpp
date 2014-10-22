@@ -12,6 +12,147 @@ bool Matrix::isValidDimension(int rows, int cols)
 	return (rows > 0 && cols > 0);
 }
 
+// Проверяет, безопасно ли складывать два числа типа double (возможность переполнения)
+// Максимальное и минимальное значение double определены как:
+// 1.797693e+308 and 2.225074e-308 соответственно.
+bool Matrix::isDoubleAdditionSafe(const double& left,  const double& right)
+{
+    // Для отрицательных чисел
+    if ( left < 0.0 && right < 0.0 ) 
+    {
+        if ( (std::numeric_limits<double>::min() - left) > right)
+        {
+            return false;
+        }
+    }
+    
+    // Для левого отрицательного и правого положительного операнда проверка не нужна
+    // if ( left < 0.0 && right > 0.0 ) { }
+    
+    // Для левого положительного и правого отрицательного операнда проверка не нужна
+    // if ( left > 0.0 && right < 0.0 ) { }
+    
+    // Для нулевого левого операнда проверка не нужна
+    // if ( left == 0.0 ) {}
+    
+    // Для нулевого правого операнда проверка не нужна
+    // if ( right == 0.0 ) {}
+    
+    // Если оба числа положительны
+    if ( left > 0.0 && right > 0.0 )
+    {
+        if ( (std::numeric_limits<double>::max() - left) < right)
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
+// Проверяет, безопасно ли вычитать два числа типа double (возможность переполнения)
+// Максимальное и минимальное значение double определены как:
+// 1.797693e+308 and 2.225074e-308 соответственно.
+bool Matrix::isDoubleSubstractionSafe(const double& left,  const double& right)
+{
+    // Для отрицательных чисел
+    if ( left < 0.0 && right < 0.0 )
+    {
+        if ( (right - left) <  -(std::numeric_limits<double>::max()) )
+        {
+            return false;
+        }
+    }
+    
+    // Для левого отрицательного и правого положительного операнда
+    if ( left < 0.0 && right > 0.0 )
+    {
+        if ( (std::numeric_limits<double>::min() + right) > left )
+        {
+            return false;
+        }
+    }
+    
+    // Для левого положительного и правого отрицательного операнда
+    if ( left > 0.0 && right < 0.0 )
+    {
+        if ( (left - std::numeric_limits<double>::max()) < right )
+        {
+            return false;
+        }
+    }
+    
+    // Для нулевого левого операнда
+    if ( left == 0.0 ) 
+    {
+        // Если правый операнд отрицательный и больше максимального
+        // положительного значения double, то в результате получаем переполнение
+        // Максимальному double придаем отрицательный знак, т.к. из правого
+        // операнда сделать положительное число не получится.
+        if (right < 0.0 && right < -(std::numeric_limits<double>::max()) )
+        {
+            return false;
+        }
+    }
+    
+    // Для нулевого правого операнда проверка не нужна 
+    // if ( right == 0.0 ) {}
+    
+    // Для положительных чисел проверка не нужна
+    // if ( left > 0.0 && right > 0.0 ) { }
+    
+    return true;
+}
+
+// Проверяет, безопасно ли перемножать два числа типа double (возможность переполнения)
+// Максимальное и минимальное значение double определены как:
+// 1.797693e+308 and 2.225074e-308 соответственно.
+bool Matrix::isDoubleMultiplicationSafe(const double& left,  const double& right)
+{
+    // Для отрицательных чисел
+    if ( left < 0.0 && right < 0.0 )
+    {
+        if ( (std::numeric_limits<double>::min() / (-left) ) > right )
+        {
+            return false;
+        }
+    }
+    
+    // Для левого отрицательного и правого положительного операнда
+    if ( left < 0.0 && right > 0.0 )
+    {
+        if ( (std::numeric_limits<double>::min() / right) > left )
+        {
+            return false;
+        }
+    }
+    
+    // Для левого положительного и правого отрицательного операнда
+    if ( left > 0.0 && right < 0.0 )
+    {
+         if ( (std::numeric_limits<double>::min() / left) > right )
+        {
+            return false;
+        }
+    }
+    
+    // Для нулевого левого операнда проверка не нужна
+    // if ( left == 0.0 ) { }
+    
+    // Для нулевого правого операнда проверка не нужна 
+    // if ( right == 0.0 ) { }
+    
+    // Для положительных чисел проверка
+    if ( left > 0.0 && right > 0.0 ) 
+    {
+        if ( (std::numeric_limits<double>::max() / left ) < right )
+        {
+            return false;
+        }
+    }
+    
+    return true;
+}
+
 // Проверяет, чтобы переданное значение строки было в допустимых пределах
 bool Matrix::isRowInRange(int row) const
 {
@@ -67,7 +208,7 @@ Matrix::Matrix(const Matrix & _copy)
 	this->setNumColumns(_copy.getNumColumns());
 	if (this->allocateMemory(rows, cols) == false)
 	{
-        throw new Matrix::ErrAllocException();
+        throw new Matrix::ErrAllocException(__func__, __LINE__, __FILE__);
 	}
 
 	for (int r = 0; r < this->getNumRows(); r++)
@@ -82,20 +223,9 @@ Matrix::Matrix(const Matrix & _copy)
 // Конструктор перемещения (?)
 Matrix::Matrix(Matrix && _temporary)
 {
-	this->setNumRows(_temporary.getNumRows());
-	this->setNumColumns(_temporary.getNumColumns());
-	if (this->allocateMemory(rows, cols) == false)
-	{
-		throw new Matrix::ErrAllocException();
-	}
-
-	for (int r = 0; r < this->getNumRows(); r++)
-	{
-		for (int c = 0; c < this->getNumColumns(); c++)
-		{
-			this->matrix[r][c] = _temporary[r][c];
-		}
-	}
+	this->rows      = std::move(_temporary.rows);
+	this->cols      = std::move(_temporary.cols);
+    this->matrix    = std::move(_temporary.matrix);
 }
 
 // Конструктор, принимающий количество строк и столбцов, заполняющий матрицу нулями. 
@@ -105,7 +235,7 @@ Matrix::Matrix(int rows, int cols)
 {
 	if ( ! Matrix::isValidDimension(rows, cols))
 	{
-		throw new Matrix::InvalDimensionsException();
+		throw new Matrix::InvalDimensionsException(__func__, __LINE__, __FILE__);
 	}
 
 	this->setNumRows(rows);
@@ -113,7 +243,7 @@ Matrix::Matrix(int rows, int cols)
 
 	if (this->allocateMemory(rows, cols) == false)
 	{
-		throw new Matrix::ErrAllocException();
+		throw new Matrix::ErrAllocException(__func__, __LINE__, __FILE__);
 	}
 
 	for (int r = 0; r < rows; r++)
@@ -134,12 +264,12 @@ Matrix::Matrix(int rows, int cols, const double * input)
 	// Проверка входных данных
 	if ( ! Matrix::isValidDimension(rows, cols) )
 	{
-		throw new Matrix::InvalDimensionsException();
+		throw new Matrix::InvalDimensionsException(__func__, __LINE__, __FILE__);
 	}
 
 	if ( input == NULL )
 	{
-		throw new Matrix::BadDataPtrException();
+		throw new Matrix::BadDataPtrException(__func__, __LINE__, __FILE__);
 	}
 
 	this->setNumRows(rows);
@@ -147,7 +277,7 @@ Matrix::Matrix(int rows, int cols, const double * input)
 
 	if (this->allocateMemory(rows, cols) == false)
 	{
-		throw new Matrix::ErrAllocException();
+		throw new Matrix::ErrAllocException(__func__, __LINE__, __FILE__);
 	}
 
 	for (int r = 0; r < rows; r++)
@@ -170,7 +300,7 @@ Matrix::~Matrix(){
 		delete[] this->matrix[r];
 	}
 	delete[] this->matrix;
-	this->matrix = NULL;
+	this->matrix = nullptr;
 }
 // =================================================================================
 
@@ -178,30 +308,30 @@ Matrix::~Matrix(){
 // =================================================================================
 // Перегруженные операторы сравнения на равенство == и неравенство !=
 // ---------------------------------------------------------------------------------
-bool Matrix::operator ==(const Matrix& right) const 
+bool operator == (const Matrix& left, const Matrix& right)
 {
     // Если размеры матриц не совпадают, они точно не равны
-    if ( this->getNumColumns() != right.getNumColumns() ||
-         this->getNumRows() != right.getNumRows() )
+    if ( left.getNumColumns() != right.getNumColumns() ||
+         left.getNumRows() != right.getNumRows() )
     {
         return false;
     }
     
     // Поэлементное сравнение элементов матриц
-    for (int row = 0; row < this->getNumRows(); row++)
+    for (int row = 0; row < left.getNumRows(); row++)
     {
-        for (int col = 0; col < this->getNumColumns(); col++) 
+        for (int col = 0; col < left.getNumColumns(); col++) 
         {
-            if ( this->matrix[row][col] != right.matrix[row][col]) return false;
+            if ( left.matrix[row][col] != right.matrix[row][col]) return false;
         }
     }
     
     return true;
 }
 
-bool Matrix::operator !=(const Matrix& right) const 
+bool operator != ( const Matrix& left, const Matrix& right )
 {
-    return !(*this == right);
+    return !(left == right);
 }
 
 // =================================================================================
@@ -209,12 +339,12 @@ bool Matrix::operator !=(const Matrix& right) const
 // =================================================================================
 // Перегруженные операторы сложения и вычитания матриц: +, +=, -, -=.
 // ---------------------------------------------------------------------------------
-const Matrix operator +(const Matrix& left, const Matrix& right)
+const Matrix operator + ( const Matrix& left, const Matrix& right )
 {
     if (left.getNumColumns()   != right.getNumColumns() ||
         left.getNumRows()      != right.getNumRows() )
     {
-        throw new Matrix::SizeMismatchException();
+        throw new Matrix::SizeMismatchException(__func__, __LINE__, __FILE__);
     }
     
     Matrix sum_result = Matrix(left.getNumRows(), left.getNumColumns());
@@ -223,13 +353,9 @@ const Matrix operator +(const Matrix& left, const Matrix& right)
     {
         for (int col = 0; col < left.getNumColumns(); col++) 
         {
-            // Если оба слагаемых элемента матриц положительные
-            if (left.matrix[row][col] > 0 && right.matrix[row][col] > 0)
-            {   // Проверяем, не выходит ли их сумма за пределы типа double
-                if ( (DBL_MAX - left.matrix[row][col]) < right.matrix[row][col])
-                {
-                    throw new Matrix::ValsOutOfRangeException();
-                }
+            if ( ! Matrix::isDoubleAdditionSafe(left.matrix[row][col], right.matrix[row][col]) )
+            {
+                throw new Matrix::ValsOutOfRangeException(__func__, __LINE__, __FILE__);
             }
             sum_result[row][col] = left.matrix[row][col] + right.matrix[row][col];
         }
@@ -238,12 +364,12 @@ const Matrix operator +(const Matrix& left, const Matrix& right)
     return sum_result; 
 }
 
-const Matrix operator -(const Matrix& left, const Matrix& right)
+const Matrix operator - ( const Matrix& left, const Matrix& right )
 {
     if (left.getNumColumns()   != right.getNumColumns() ||
         left.getNumRows()      != right.getNumRows() )
     {
-        throw new Matrix::SizeMismatchException();
+        throw new Matrix::SizeMismatchException(__func__, __LINE__, __FILE__);
     }
     
     Matrix sum_result = Matrix(left.getNumRows(), left.getNumColumns());
@@ -252,13 +378,9 @@ const Matrix operator -(const Matrix& left, const Matrix& right)
     {
         for (int col = 0; col < left.getNumColumns(); col++) 
         {
-            // Если оба слагаемых элемента матриц отрицательные
-            if (left.matrix[row][col] < 0 && right.matrix[row][col] < 0)
-            {   // Проверяем, не выходит ли их сумма за пределы типа double
-                if ( (DBL_MIN - left.matrix[row][col]) > right.matrix[row][col])
-                {
-                    throw new Matrix::ValsOutOfRangeException();
-                }
+            if ( ! Matrix::isDoubleSubstractionSafe(left.matrix[row][col], right.matrix[row][col]) )
+            {
+                throw new Matrix::ValsOutOfRangeException(__func__, __LINE__, __FILE__);
             }
             sum_result[row][col] = left.matrix[row][col] - right.matrix[row][col];
         }
@@ -267,59 +389,179 @@ const Matrix operator -(const Matrix& left, const Matrix& right)
     return sum_result; 
 }
 
-Matrix& operator +=(Matrix& left, const Matrix& right)
+Matrix& Matrix::operator += ( const Matrix& right )
 {
-    if (left.getNumColumns()   != right.getNumColumns() ||
-        left.getNumRows()      != right.getNumRows() )
+    if (this->getNumColumns()   != right.getNumColumns() ||
+        this->getNumRows()      != right.getNumRows() )
     {
-        throw new Matrix::SizeMismatchException();
+        throw new Matrix::SizeMismatchException(__func__, __LINE__, __FILE__);
     }
     
-    for (int row = 0; row < left.getNumRows(); row++)
+    for (int row = 0; row < this->getNumRows(); row++)
     {
-        for (int col = 0; col < left.getNumColumns(); col++) 
+        for (int col = 0; col < this->getNumColumns(); col++) 
         {
-            // Если оба слагаемых элемента матриц положительные
-            if (left.matrix[row][col] > 0 && right.matrix[row][col] > 0)
-            {   // Проверяем, не выходит ли их сумма за пределы типа double
-                if ( (DBL_MAX - left.matrix[row][col]) < right.matrix[row][col])
-                {
-                    throw new Matrix::ValsOutOfRangeException();
-                }
+            if ( ! Matrix::isDoubleAdditionSafe(this->matrix[row][col], right.matrix[row][col]) )
+            {
+                throw new Matrix::ValsOutOfRangeException(__func__, __LINE__, __FILE__);
             }
-            left.matrix[row][col] += right.matrix[row][col];
+            this->matrix[row][col] += right.matrix[row][col];
         }
     }
     
-    return left; 
+    return *this; 
 }
 
-Matrix& operator -=(Matrix& left, const Matrix& right)
+Matrix& Matrix::operator -= ( const Matrix& right )
 {
-    if (left.getNumColumns()   != right.getNumColumns() ||
-        left.getNumRows()      != right.getNumRows() )
+    if (this->getNumColumns()   != right.getNumColumns() ||
+        this->getNumRows()      != right.getNumRows() )
     {
-        throw new Matrix::SizeMismatchException();
+        throw new Matrix::SizeMismatchException(__func__, __LINE__, __FILE__);
     }
     
-    for (int row = 0; row < left.getNumRows(); row++)
+    for (int row = 0; row < this->getNumRows(); row++)
     {
-        for (int col = 0; col < left.getNumColumns(); col++) 
+        for (int col = 0; col < this->getNumColumns(); col++) 
         {
-            // Если оба слагаемых элемента матриц отрицательные
-            if (left.matrix[row][col] < 0 && right.matrix[row][col] < 0)
-            {   // Проверяем, не выходит ли их сумма за пределы типа double
-                if ( (DBL_MIN - left.matrix[row][col]) > right.matrix[row][col])
-                {
-                    throw new Matrix::ValsOutOfRangeException();
-                }
+            if ( ! Matrix::isDoubleSubstractionSafe(this->matrix[row][col], right.matrix[row][col]) )
+            {
+                throw new Matrix::ValsOutOfRangeException(__func__, __LINE__, __FILE__);
             }
-            left.matrix[row][col] += right.matrix[row][col];
+            this->matrix[row][col] -= right.matrix[row][col];
         }
     }
     
-    return left; 
+    return *this; 
 }
+// =================================================================================
+
+
+// =================================================================================
+// Перегруженные операторы умножения матриц: *, *=.
+// ---------------------------------------------------------------------------------
+const Matrix operator * ( const Matrix& left, const Matrix& right )
+{
+    // Если количество столбцов левой матрицы не соответствует количеству строк 
+    // правой матрицы - выбрасываем исключение
+    if ( left.getNumColumns() != right.getNumRows() )
+    {
+        throw new Matrix::SizeMismatchException(__func__, __LINE__, __FILE__);
+    }
+    double temp = 0;
+    Matrix mul_result = Matrix(left.getNumRows(), right.getNumColumns());
+    
+    // Проходимся по строкам и столбцам результирующей матрицы
+    // и заполняем ее
+    for (int row = 0; row < mul_result.getNumRows(); row++)
+    {
+        for (int col = 0; col < mul_result.getNumColumns(); col++) 
+        {
+            for (int col_left = 0; col_left < left.getNumColumns(); col_left++) 
+            {
+                if ( ! Matrix::isDoubleMultiplicationSafe(
+                        left.matrix[row][col_left], right.matrix[col_left][col]))
+                {
+                    throw new Matrix::ValsOutOfRangeException(__func__, __LINE__, __FILE__);
+                }
+                
+                temp = left.matrix[row][col_left] * right.matrix[col_left][col];
+                
+                if ( ! Matrix::isDoubleAdditionSafe(mul_result[row][col],temp))
+                {
+                    throw new Matrix::ValsOutOfRangeException(__func__, __LINE__, __FILE__);
+                }
+                mul_result[row][col] =  mul_result[row][col] + temp;
+            }
+        }
+    }
+    
+    return mul_result; 
+}
+
+
+// =================================================================================
+
+
+// =================================================================================
+// Перегруженные операторы умножения матрицы на скаляр: *, *=.
+// ---------------------------------------------------------------------------------
+const Matrix operator * ( const Matrix& m, const double& _multiplier )
+{
+    Matrix mul_result = Matrix(m.getNumRows(), m.getNumColumns());
+    
+    for (int row = 0; row < m.getNumRows(); row++)
+    {
+        for (int col = 0; col < m.getNumColumns(); col++) 
+        {
+            if ( ! Matrix::isDoubleMultiplicationSafe(m.matrix[row][col],_multiplier))
+            {
+                throw new Matrix::ValsOutOfRangeException(__func__, __LINE__, __FILE__);
+            }
+            mul_result[row][col] = m.matrix[row][col] * _multiplier;
+        }
+    }
+    return mul_result; 
+}
+
+const Matrix operator * ( const double& _multiplier, const Matrix& m )
+{
+    return Matrix(m * _multiplier); 
+}
+
+Matrix& Matrix::operator *= ( const double& _multiplier )
+{
+    for (int row = 0; row < this->getNumRows(); row++)
+    {
+        for (int col = 0; col < this->getNumColumns(); col++) 
+        {
+            if ( ! Matrix::isDoubleMultiplicationSafe(this->matrix[row][col], _multiplier))
+            {
+                throw new Matrix::ValsOutOfRangeException(__func__, __LINE__, __FILE__);
+            }
+            this->matrix[row][col] *= _multiplier;
+        }
+    }
+    return *this;  
+}
+// =================================================================================
+
+
+
+// =================================================================================
+// Операторы присвоения и перемещения
+// ---------------------------------------------------------------------------------
+
+// Оператор присвоения
+Matrix& Matrix::operator =(const Matrix& right)
+{
+    this->setNumRows(right.getNumRows());
+	this->setNumColumns(right.getNumColumns());
+	if (this->allocateMemory(rows, cols) == false)
+	{
+        throw new Matrix::ErrAllocException(__func__, __LINE__, __FILE__);
+	}
+
+	for (int r = 0; r < this->getNumRows(); r++)
+	{
+		for (int c = 0; c < this->getNumColumns(); c++)
+		{
+			this->matrix[r][c] = right[r][c];
+		}
+	}
+    return *this;
+}
+
+
+// Оператор перемещения
+Matrix& Matrix::operator =(Matrix && right)
+{
+    this->rows      = std::move(right.rows);
+	this->cols      = std::move(right.cols);
+    this->matrix    = std::move(right.matrix);
+}
+
+
 // =================================================================================
 
 
@@ -349,7 +591,7 @@ Matrix::MatrixRowAccessor< const Matrix > Matrix::operator[] (int _rowIndex) con
 {
 	if ( ! this->isRowInRange(_rowIndex)) 
 	{
-		throw new Matrix::OutOfRangeException();
+		throw new Matrix::OutOfRangeException(__func__, __LINE__, __FILE__);
 	}
 	return MatrixRowAccessor< const Matrix >(*this, _rowIndex);
 }
@@ -360,7 +602,7 @@ Matrix::MatrixRowAccessor< Matrix > Matrix::operator[] (int _rowIndex)
 {
 	if (!this->isRowInRange(_rowIndex))
 	{
-		throw new Matrix::OutOfRangeException();
+		throw new Matrix::OutOfRangeException(__func__, __LINE__, __FILE__);
 	}
 	return MatrixRowAccessor< Matrix >(*this, _rowIndex);
 }
